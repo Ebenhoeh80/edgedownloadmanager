@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Download Manager</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Header ───────────────────────────────────────────── -->
+    <header class="header">
+      <h1 class="header__title">
+        <svg class="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download Manager <span id="header-version" style="font-size:11px;font-weight:400;opacity:.55;"></span>
+      </h1>
+      <button id="btn-clear" class="btn btn--ghost btn--sm"
+        title="Remove all completed, cancelled and failed entries">
+        Clear finished
+      </button>
+    </header>
+
+    <!-- ── Summary Bar (visible only while downloads are active) ── -->
+    <div class="summary-bar" id="summary-bar" hidden>
+      <span id="summary-active" class="summary-item"></span>
+      <span class="summary-sep">·</span>
+      <span id="summary-queued" class="summary-item"></span>
+      <span class="summary-sep">·</span>
+      <span id="summary-speed" class="summary-item summary-item--speed"></span>
+    </div>
+
+    <!-- ── Add Download Form ────────────────────────────────── -->
+    <section class="add-form">
+      <div class="input-row">
+        <input
+          id="input-url"
+          type="url"
+          class="input"
+          placeholder="https://example.com/file.zip"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Download URL"
+        />
+      </div>
+      <div class="options-row">
+        <label class="label" for="input-filename">Filename</label>
+        <input
+          id="input-filename"
+          type="text"
+          class="input input--sm"
+          placeholder="(auto-detect)"
+          aria-label="Custom filename"
+        />
+
+        <label class="label" for="input-streams">Streams</label>
+        <select id="input-streams" class="select"
+          title="Parallel streams: more = faster (if server supports Range requests)">
+          <option value="1">1 – Single</option>
+          <option value="2">2 – Dual</option>
+          <option value="4" selected>4 – Default</option>
+          <option value="8">8 – Fast</option>
+          <option value="16">16 – Max</option>
+        </select>
+
+        <button id="btn-add" class="btn btn--primary">↓ Download</button>
+      </div>
+
+      <!-- Target subfolder row -->
+      <datalist id="folder-suggestions">
+        <option value="Videos">
+        <option value="Videos/Filme">
+        <option value="Videos/Serien">
+        <option value="Videos/YouTube">
+        <option value="Musik">
+        <option value="Musik/Alben">
+        <option value="Bilder">
+        <option value="Bilder/Wallpaper">
+        <option value="Dokumente">
+        <option value="Dokumente/PDFs">
+        <option value="Software">
+        <option value="Software/Portable">
+        <option value="Archive">
+        <option value="Games">
+        <option value="Games/Mods">
+        <option value="Backup">
+        <option value="Desktop">
+        <option value="Temp">
+      </datalist>
+      <div class="folder-row">
+        <span class="folder-row__icon" aria-hidden="true">📁</span>
+        <label class="label" for="input-folder">Zielordner</label>
+        <input
+          id="input-folder"
+
+          class="input"
+          placeholder="z. B. Videos/Filme  (leer = Downloads-Stammordner)"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Zielordner relativ zum Downloads-Verzeichnis"
+        />
+        <button id="btn-save-folder" class="btn btn--ghost btn--sm"
+          title="Als Standard-Zielordner speichern">Speichern</button>
+        <button id="btn-open-folder" class="btn btn--ghost btn--sm"
+          title="Downloads-Ordner im Windows-Explorer öffnen">📂 Öffnen</button>
+      </div>
+
+      <!-- Feedback (error / success) -->
+      <div id="add-feedback" class="feedback hidden" role="alert" aria-live="polite"></div>
+    </section>
+
+    <!-- ── Download List ────────────────────────────────────── -->
+    <section class="download-list" id="download-list"
+      aria-live="polite" aria-label="Downloads">
+
+      <div class="empty-state" id="empty-state">
+        <svg class="empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <p class="empty-state__title">No downloads yet</p>
+        <p class="empty-state__sub">Paste a URL above and press ↓ Download.</p>
+      </div>
+
+    </section>
+
+    <!-- Resize-Handle: JS-gesteuerter Ziehpunkt unten rechts -->
+    <div class="resize-handle" id="resize-handle" title="Fenstergröße ändern"></div>
+  </div>
+
+  <!-- ── Toast container ──────────────────────────────────── -->
+  <div class="toast-container" id="toast-container" aria-live="assertive"></div>
+
+  <!-- ── Download Item Template (cloned by JS) ────────────── -->
+  <template id="tpl-download-item">
+    <article class="dl-item" data-id="" data-state="" data-url="">
+
+      <!-- Row 1: Filename + badges -->
+      <div class="dl-item__header">
+        <span class="dl-item__filename"></span>
+        <div class="dl-item__badge-group">
+          <span class="dl-item__mode-badge badge badge--mode hidden"></span>
+          <span class="dl-item__state-badge badge"></span>
+        </div>
+      </div>
+
+      <!-- Row 2: URL (truncated) + copy button -->
+      <div class="dl-item__url-row">
+        <span class="dl-item__url"></span>
+        <button class="btn btn--icon action-copy-url" title="Copy URL to clipboard">⧉</button>
+      </div>
+
+      <!-- Row 2b: Target folder (hidden when none set) -->
+      <div class="dl-item__folder-row hidden">
+        <span aria-hidden="true">📁</span>
+        <span class="dl-item__folder-text"></span>
+      </div>
+
+      <!-- Row 2c: Current step (visible while downloading/pending) -->
+      <div class="dl-item__step-row hidden" aria-live="polite">
+        <span class="dl-item__step-spinner" aria-hidden="true"></span>
+        <span class="dl-item__step-text"></span>
+      </div>
+
+      <!-- Row 3: Progress bar -->
+      <div class="dl-item__progress-row">
+        <div class="progress-bar"
+          role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="progress-bar__fill"></div>
+        </div>
+        <span class="dl-item__percent">–%</span>
+      </div>
+
+      <!-- Row 4: Info grid (size / speed / avg / ETA / chunks / duration / started / type) -->
+      <div class="dl-item__info-grid">
+        <div class="info-cell">
+          <span class="info-label">Size</span>
+          <span class="info-value dl-item__size">–</span>
+        </div>
+        <div class="info-cell">
+          <span class="info-label">Speed</span>
+          <span class="info-value dl-item__speed">–</span>
+        </div>
+        <div class="info-cell">
+          <span class="info-label">Avg Speed</span>
+          <span class="info-value dl-item__avg-speed">–</span>
+        </div>
+        <div class="info-cell">
+          <span class="info-label">ETA</span>
+          <span class="info-value dl-item__eta">–</span>
+        </div>
+        <div class="info-cell">
+          <span class="info-label">Chunks</span>
+          <span class="info-value dl-item__chunks">–</span>
+        </div>
+        <div class="info-cell">
+          <span class="info-label">Duration</span>
+          <span class="info-value dl-item__duration">–</span>
+        </div>
+        <div class="info-cell">
+          <span class="info-label">Started</span>
+          <span class="info-value dl-item__started">–</span>
+        </div>
+        <div class="info-cell">
+          <span class="info-label">Type</span>
+          <span class="info-value dl-item__type">–</span>
+        </div>
+      </div>
+
+      <!-- Row 5: Queue position (pending items only) -->
+      <div class="dl-item__queue-row hidden">
+        <span aria-hidden="true">🕐</span>
+        <span class="dl-item__queue-text">Waiting in queue…</span>
+      </div>
+
+      <!-- Row 6: Retry warning (shown while retries are happening) -->
+      <div class="dl-item__retry-row hidden">
+        <span class="warn-icon" aria-hidden="true">⚠</span>
+        <span class="dl-item__retry-text"></span>
+      </div>
+
+      <!-- Row 7: Error detail panel -->
+      <div class="dl-item__error-panel hidden" role="alert">
+        <span class="error-panel__icon" aria-hidden="true">✕</span>
+        <div class="error-panel__body">
+          <strong class="error-panel__title">Download failed</strong>
+          <span class="dl-item__error-detail"></span>
+        </div>
+        <button class="btn btn--sm btn--ghost action-retry" title="Retry this download">↺ Retry</button>
+      </div>
+
+      <!-- Row 8: Action buttons -->
+      <div class="dl-item__actions">
+        <button class="btn btn--sm btn--ghost  action-pause"  title="Pause download" >⏸ Pause</button>
+        <button class="btn btn--sm btn--primary action-resume" title="Resume download">▶ Resume</button>
+        <button class="btn btn--sm btn--danger  action-cancel" title="Cancel download">✕ Cancel</button>
+        <button class="btn btn--sm btn--ghost  action-show-in-explorer hidden"
+          title="Datei im Windows-Explorer anzeigen">📂 Im Explorer</button>
+        <button class="btn btn--sm btn--ghost  action-toggle-log"
+          title="Download-Log anzeigen / verbergen">📋 Log</button>
+      </div>
+
+      <!-- Row 9: Log panel (hidden until user clicks Log button) -->
+      <div class="dl-item__log-panel hidden" aria-label="Download-Log">
+        <div class="log-panel__header">
+          <span>📋 Download Log</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn--icon action-refresh-log" title="Log aktualisieren">↺</button>
+            <button class="btn btn--icon action-close-log"   title="Log schließen">✕</button>
+          </div>
+        </div>
+        <div class="log-panel__entries" aria-live="polite"></div>
+      </div>
+
+    </article>
+  </template>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
