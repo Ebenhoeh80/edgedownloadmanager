@@ -1,5 +1,7 @@
 # Edge Download Manager
 
+[![Sponsor on GitHub](https://img.shields.io/badge/%E2%9D%A4%20Sponsor%20on%20GitHub-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Ebenhoeh80)
+
 A production-ready Microsoft Edge extension (Manifest V3) that provides multi-stream
 parallel downloading with speed tracking, pause/resume, and a modern dark-mode UI.
 
@@ -96,3 +98,25 @@ User clicks "Download"
   restarts from 0 (not from the byte offset). Fix: write chunks to `IndexedDB`.
 - **No authentication support** – add custom request headers in `addDownload()` options.
 - **Icons are SVG placeholders** – replace with real PNGs for Edge Add-ons store.
+
+---
+
+## ❤️ Support this project
+
+<div align="center">
+
+**I build and maintain this project in my free time and cover the running costs myself — my time, electricity, tools and IT equipment.**
+
+Sponsoring is voluntary and does not buy support, features or response times. Every contribution, however small, helps. Thank you! 🙏
+
+<a href="https://github.com/sponsors/Ebenhoeh80">
+  <img src="https://img.shields.io/badge/%E2%9D%A4%20Sponsor%20on%20GitHub-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" height="42">
+</a>
+<a href="https://www.paypal.com/pool/9p84qTHCFr?sr=wccr">
+  <img src="https://img.shields.io/badge/%E2%9D%A4%20Donate%20via%20PayPal-PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="Donate via PayPal" height="42">
+</a>
+<a href="https://buymeacoffee.com/daneben">
+  <img src="https://img.shields.io/badge/%E2%98%95%20Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee" height="42">
+</a>
+
+</div>
